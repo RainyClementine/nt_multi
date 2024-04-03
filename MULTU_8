@@ -1,0 +1,98 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 2024/04/03 09:02:53
+// Design Name: 
+// Module Name: multi
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+module MULTU_8(
+	input clk, // 乘法器时钟信号
+	input reset,
+	input [7:0] a, // 输入 a(被乘数)
+	input [7:0] b, // 输入 b(乘数)
+	output [15:0] z // 乘积输出 z
+ );
+ // 申请寄存器
+ reg [15:0] tem;
+always @(posedge clk or posedge reset)
+begin
+ // reset 置零
+ if(reset) begin
+ tem = 0;
+ end
+ else begin
+ //通过字符拼接方式表示出中间相乘值，并相加
+tem=(b[0]? {8'b0, a} : 16'b0)+(b[1]? {7'b0, a, 1'b0} :16'b0)+
+	(b[2]? {6'b0, a, 2'b0} :16'b0)+(b[3]? {5'b0, a, 3'b0} :16'b0)+
+	(b[4]? {4'b0, a, 4'b0} :16'b0)+(b[5]? {3'b0, a, 5'b0} :16'b0)+
+	(b[6]? {2'b0, a, 6'b0} :16'b0)+(b[7]? {1'b0, a, 7'b0} :16'b0);
+ end
+ end
+ assign z = tem;
+endmodule
+
+module MULTU_16(
+    input clk,      
+    input reset,     
+    input [15:0] a,  
+    input [15:0] b,  
+    output reg [31:0] z,
+	output reg [15:0] low
+);
+wire [15:0] prod_low, prod_mid, prod_mid2, prod_high;
+
+MULTU_8 mult_low(
+    .clk(clk),
+    .reset(reset),
+    .a(a[7:0]),
+    .b(b[7:0]),
+    .z(prod_low)
+);
+
+MULTU_8 mult_mid(
+    .clk(clk),
+    .reset(reset),
+    .a(a[7:0]),
+    .b(b[15:8]),
+    .z(prod_mid)
+);
+
+MULTU_8 mult_mid2(
+    .clk(clk),
+    .reset(reset),
+    .a(a[15:8]),
+    .b(b[7:0]),
+    .z(prod_mid2)
+);
+
+MULTU_8 mult_high(
+    .clk(clk),
+    .reset(reset),
+    .a(a[15:8]),
+    .b(b[15:8]),
+    .z(prod_high)
+);
+
+always @(posedge clk or posedge reset) begin
+    if (reset) 
+        z = 0;
+    else
+		low=prod_low;
+		z = (prod_high<<16)+((prod_mid+prod_mid2)<<8)+prod_low+
+			(((prod_mid>>15)&1&(prod_mid2>>15))<<16);
+end
+endmodule
